@@ -77,6 +77,10 @@ function Export-Registry
         # Go through all paths
         foreach ($path in $KeyPath)
         {
+            if ($path -notlike '*:*') {
+                $path = 'Registry::' + $path
+            }
+
             if ((Test-IsRegistryKey -KeyPath $path) -eq $true)
             {
                 Write-Verbose "Getting properties for key: $path"
@@ -92,21 +96,48 @@ function Export-Registry
                 # Get key properties
                 [array]$regItemProperties = $regItem.'Property'
                 
-                if ($regItemProperties.Count -gt 0)
+                if ($regItemProperties.Count -gt 0 -or $regItem.SubKeyCount -gt 0)
                 {
-                    # Enumerate properties
-                    foreach ($property in $regItemProperties)
+                if ($regItemProperties.Count -gt 0) {
+                        # Enumerate properties
+                        foreach ($property in $regItemProperties)
+                        {
+                            Write-Verbose "Exporting $property"
+                            
+                            # Append data to return array
+                            [void]($returnData.Add([pscustomobject]@{
+                                        'Path'  = $regItem
+                                        'Name'  = $property
+                                        'Value' = (Get-ItemProperty ('Registry::' + $regItem)).$property #$regItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
+                                        'Type'  = if ($property -eq '(Default)') { $regItem.GetValueKind('') } else {$regItem.GetValueKind($property)}
+                                        'Computername' = $env:computername
+                                    }))
+                        }
+                    }
+                    if ($regItem.SubKeyCount -gt 0)
                     {
-                        Write-Verbose "Exporting $property"
+#[Microsoft.Win32.RegistryKey]
+                        $regChildItems = Get-ChildItem @paramGetItem -Recurse
                         
-                        # Append data to return array
-                        [void]($returnData.Add([pscustomobject]@{
-                                    'Path'  = $regItem
-                                    'Name'  = $property
-                                    'Value' = $regItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
-                                    'Type'  = $regItem.GetValueKind($property)
-                                    'Computername' = $env:computername
-                                }))
+                        foreach ($regChildItem in $regChildItems)
+                        {
+
+                            [array]$regChildItemProperties = $regChildItem.'Property'
+                            # Enumerate properties
+                            foreach ($property in $regChildItemProperties)
+                            {
+                                Write-Verbose "Exporting $property"
+                                        
+                                # Append data to return array
+                                [void]($returnData.Add([pscustomobject]@{
+                                            'Path'  = $regChildItem
+                                            'Name'  = $property
+                                            'Value' = (Get-ItemProperty ('Registry::' + $regChildItem)).$property #$regChildItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
+                                            'Type'  = if ($property -eq '(Default)') { $regChildItem.GetValueKind('') } else {$regChildItem.GetValueKind($property)}
+                                            'Computername' = $env:computername
+                                        }))
+                            }
+                        }
                     }
                 }
                 else
