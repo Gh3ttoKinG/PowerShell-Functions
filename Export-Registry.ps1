@@ -119,6 +119,7 @@ function Export-Registry
         # Go through all paths
         foreach ($path in $KeyPath)
         {
+			$path = $path -replace '^Computer\\', ''
             if ($path -notlike '*:*') {
                 $path = 'Registry::' + $path
             }
@@ -152,7 +153,7 @@ function Export-Registry
                                         'Path'         = $regItem.Name
                                         'Name'         = if ($property -eq '(Default)') { '(Default)' } else { $property }
                                         'Value'        = (Get-ItemProperty ('Registry::' + $regItem)).$property #$regItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
-                                        'Type'         = if ($property -eq '(Default)') { $regItem.GetValueKind('') } else {$regItem.GetValueKind($property)}
+                                        'Type'         = if ($property -eq '(Default)') { $regItem.GetValueKind('').value__ } else {$regItem.GetValueKind($property).value__}
                                         'TypeString'   = if ($property -eq '(Default)') { $regItem.GetValueKind('').ToString() } else {$regItem.GetValueKind($property).ToString()}
                                         'Computername' = $env:computername
                                     }))
@@ -176,7 +177,7 @@ function Export-Registry
                                             'Path'         = $regChildItem.Name
                                             'Name'         = if ($property -eq '(Default)') { '(Default)' } else { $property }
                                             'Value'        = (Get-ItemProperty ('Registry::' + $regChildItem)).$property #$regChildItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
-											'Type'         = if ($property -eq '(Default)') { $regChildItem.GetValueKind('') } else {$regChildItem.GetValueKind($property)}
+											'Type'         = if ($property -eq '(Default)') { $regChildItem.GetValueKind('').value__ } else {$regChildItem.GetValueKind($property).value__}
 											'TypeString'   = if ($property -eq '(Default)') { $regChildItem.GetValueKind('').ToString() } else {$regChildItem.GetValueKind($property).ToString()}
                                             'Computername' = $env:computername
                                         }))
@@ -191,7 +192,7 @@ function Export-Registry
                                 'Path'         = $regItem.Name
                                 'Name'         = '(Default)'
                                 'Value'        = $null
-								'Type'         = [Microsoft.Win32.RegistryValueKind]1
+								'Type'         = ([Microsoft.Win32.RegistryValueKind]1).value__
 								'TypeString'   = 'String'
                                 'Computername' = $env:computername
                             }))
