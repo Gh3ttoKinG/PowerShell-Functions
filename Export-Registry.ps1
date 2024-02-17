@@ -1,3 +1,42 @@
+function Test-IsRegistryKey
+{
+    <#
+        .SYNOPSIS
+            Cmdlet will check if the specified registry key is valid.
+        
+        .DESCRIPTION
+            Cmdlet will check if the specified registry path is valid.
+        
+        .PARAMETER KeyPath
+            A string representing the registry path to check in the PSDrive format IE HKLM:\SOFTWARE
+        
+        .EXAMPLE
+            PS C:\> Test-IsRegistryKey -KeyPath 'value1'
+    #>
+    
+    [OutputType([bool])]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $KeyPath
+    )
+    
+    if ($KeyPath -notlike '*:*') {
+        $KeyPath = 'Registry::' + $KeyPath
+    }
+
+    if (Test-Path -LiteralPath "$KeyPath")
+    {
+        return (Get-Item -LiteralPath "$KeyPath").PsProvider.Name -match 'Registry'
+    }
+    else
+    {
+        return $false
+    }
+}
+
 function Export-Registry
 {
     <#
@@ -19,6 +58,7 @@ function Export-Registry
         
                 - CSV
                 - XML
+				- JSON
         
             PArameter is used in conjunction with the ExportPath paramter.
         
@@ -52,7 +92,7 @@ function Export-Registry
         $KeyPath,
         [Parameter(ParameterSetName = 'Export',
                    Mandatory = $true)]
-        [ValidateSet('xml', 'csv', 'reg', IgnoreCase = $true)]
+        [ValidateSet('xml', 'csv', 'json', 'reg', IgnoreCase = $true)]
         [ValidateNotNullOrEmpty()]
         [string]
         $ExportFormat,
@@ -98,7 +138,8 @@ function Export-Registry
                 
                 if ($regItemProperties.Count -gt 0 -or $regItem.SubKeyCount -gt 0)
                 {
-                if ($regItemProperties.Count -gt 0) {
+                if ($regItemProperties.Count -gt 0)
+					{
                         # Enumerate properties
                         foreach ($property in $regItemProperties)
                         {
@@ -106,10 +147,11 @@ function Export-Registry
                             
                             # Append data to return array
                             [void]($returnData.Add([pscustomobject]@{
-                                        'Path'  = $regItem
-                                        'Name'  = $property
-                                        'Value' = (Get-ItemProperty ('Registry::' + $regItem)).$property #$regItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
-                                        'Type'  = if ($property -eq '(Default)') { $regItem.GetValueKind('') } else {$regItem.GetValueKind($property)}
+                                        'Path'         = $regItem.Name
+                                        'Name'         = if ($property -eq '(Default)') { '(Default)' } else { $property }
+                                        'Value'        = (Get-ItemProperty ('Registry::' + $regItem)).$property #$regItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
+                                        'Type'         = if ($property -eq '(Default)') { $regItem.GetValueKind('') } else {$regItem.GetValueKind($property)}
+                                        'TypeString'   = if ($property -eq '(Default)') { $regItem.GetValueKind('').ToString() } else {$regItem.GetValueKind($property).ToString()}
                                         'Computername' = $env:computername
                                     }))
                         }
@@ -130,10 +172,11 @@ function Export-Registry
                                         
                                 # Append data to return array
                                 [void]($returnData.Add([pscustomobject]@{
-                                            'Path'  = $regChildItem
-                                            'Name'  = $property
-                                            'Value' = (Get-ItemProperty ('Registry::' + $regChildItem)).$property #$regChildItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
-                                            'Type'  = if ($property -eq '(Default)') { $regChildItem.GetValueKind('') } else {$regChildItem.GetValueKind($property)}
+                                            'Path'         = $regChildItem.Name
+                                            'Name'         = if ($property -eq '(Default)') { '(Default)' } else { $property }
+                                            'Value'        = (Get-ItemProperty ('Registry::' + $regChildItem)).$property #$regChildItem.GetValue($property, $null, 'DoNotExpandEnvironmentNames')
+											'Type'         = if ($property -eq '(Default)') { $regChildItem.GetValueKind('') } else {$regChildItem.GetValueKind($property)}
+											'TypeString'   = if ($property -eq '(Default)') { $regChildItem.GetValueKind('').ToString() } else {$regChildItem.GetValueKind($property).ToString()}
                                             'Computername' = $env:computername
                                         }))
                             }
@@ -144,10 +187,11 @@ function Export-Registry
                 {
                     # Return default object
                     [void]($returnData.Add([pscustomobject]@{
-                                'Path'         = $regItem
+                                'Path'         = $regItem.Name
                                 'Name'         = '(Default)'
                                 'Value'        = $null
-                                'Type'         = 'String'
+								'Type'         = [Microsoft.Win32.RegistryValueKind]1
+								'TypeString'   = 'String'
                                 'Computername' = $env:computername
                             }))
                 }
@@ -190,6 +234,11 @@ function Export-Registry
                         {
                             # Export to XML and overwrite
                             $returnData | Export-Clixml -Path $ExportPath -Force
+                        }
+						'json'
+                        {
+                            # Export to JSON and overwrite
+                            $returnData | ConvertTo-Json | Out-File -FilePath $ExportPath -Force
                         }
                     }
                     
