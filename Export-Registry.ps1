@@ -90,6 +90,8 @@ function Export-Registry
         [Alias('PSPath')]
         [string[]]
         $KeyPath,
+		[bool]
+		$Subkeys = $false,
         [Parameter(ParameterSetName = 'Export',
                    Mandatory = $true)]
         [ValidateSet('xml', 'csv', 'json', 'reg', IgnoreCase = $true)]
@@ -156,9 +158,8 @@ function Export-Registry
                                     }))
                         }
                     }
-                    if ($regItem.SubKeyCount -gt 0)
+                    if ($Subkeys -eq $true -and $regItem.SubKeyCount -gt 0)
                     {
-#[Microsoft.Win32.RegistryKey]
                         $regChildItems = Get-ChildItem @paramGetItem -Recurse
                         
                         foreach ($regChildItem in $regChildItems)
